@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Sessions: users can create, read their own sessions
+    match /sessions/{sessionId} {
+      allow create: if request.auth != null;
+      allow read, update: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    // Detections: authenticated users can create, all can read for map
+    match /detections/{detectionId} {
+      allow create: if request.auth != null;
+      allow read: if true;
+      allow update: if request.auth != null && 
+        (request.auth.uid == resource.data.userId || 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // Aggregated reports: read-only for all, write by functions
+    match /aggregatedReports/{reportId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
+    // RTI drafts: users can manage their own
+    match /rtiDrafts/{draftId} {
+      allow create, read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
